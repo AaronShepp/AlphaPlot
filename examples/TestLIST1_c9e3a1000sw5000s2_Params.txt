@@ -1,0 +1,30 @@
+=== Geometry ===
+INNER_DIAMETER = 9
+EDGE_WIDTH     = 3
+
+=== Species list ===
+LIST = ['Sorbus torminalis', 'Taxus baccata', 'Acer campestre', 'Tilia platyphyllos']
+
+=== Criteria ===
+MIN_NEIGHBOR_CASES = {1: 1, 2: 1, 3: 0, 4: 0, 5: 0, 6: 0}
+NEIGHBOR_TOLERANCE = {1: 4, 2: 4, 3: 2, 4: 1, 5: 1, 6: 0}
+
+=== Scoring ===
+PERFECT_BONUS                 = 500
+POINTS_PER_MIN_CONSTRAINT     = 20
+POINTS_PER_BALANCE_CONSTRAINT = 10
+MIN_VIOLATION_PENALTY         = 200
+TOL_VIOLATION_PENALTY         = 20
+VARIANCE_PENALTY              = 2.0
+RANGE_PENALTY                 = 5.0
+GEN_IMPROVE_WEIGHT            = 2.0
+MAX_EVALUATED_NEIGHBORS       = 3
+
+=== Simulated Annealing Calibration ===
+SA_T0    = 1200.0
+SA_T_END = 0.1
+
+=== Search Effort ===
+RANDOM_ATTEMPTS = 1000
+SA_SWAPS        = 5000
+SEED_RANGE      = [0, 1]
