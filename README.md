@@ -147,7 +147,7 @@ Or run directly from an IDE (e.g. VS Code, PyCharm).
 
 ## Future Improvements
 
-For suggestions or bug reports, feel free to contact me via email, asc.sheppard@gmail.com 
+For suggestions or bug reports, feel free to contact me via email: asc.sheppard@gmail.com 
 
 ## Reference List
 
