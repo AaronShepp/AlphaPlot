@@ -147,8 +147,6 @@ Or run directly from an IDE (e.g. VS Code, PyCharm).
 
 ## Future Improvements
 
-I plan to add a feature where a previously created layout can be used as the starting layout for random swaps.
-
 For suggestions or bug reports, feel free to contact me via email, asc.sheppard@gmail.com 
 
 ## Reference List
