@@ -122,11 +122,15 @@ SA_SWAPS        = 5000        # Simulated annealing steps
 SEED_RANGE      = range(2)    # Number of random seeds
 ```
 ### Define Export
-The program will create four export files. The program will automatically include a few key input parameters in the exported file names. You can decide if "Test" is added to the start of these file names. "Test" may be useful when exploring parameters as you will be creating many files that you may later want to delete. You must define the global location of the folder where you want the files to be saved. If a file with the same name already exists, a numeric suffix is added automatically.
+The program will create four export files. A few input parameters will automatically be included in the exported file names. You can decide if "Test" is added to the start of these file names. "Test" may be useful when exploring parameters as you will be creating many files that you may later want to delete. You must define the global location of the folder where you want the files to be saved. If a file with the same name already exists, a numeric suffix is added automatically.
 
 1, a vector image of the plot in .svg format. 
 
-2, An Excel spreadsheet with the counts of cases for each n for each species-pair permutation in .xlsx format. It also includes summary statistics with the input criteria parameters and the minimums and ranges in the exported layout. These exported mins and ranges are colour coded according to if their attempted criteria were failed -> yellow, met -> green, or surpassed -> blue. 
+2, an Excel spreadsheet with the counts of cases for each n for each species-pair permutation in .xlsx format. It also includes summary statistics with the input criteria parameters and the minimums and ranges in the exported layout. These exported mins and ranges are colour coded according to if their attempted criteria were failed -> yellow, met -> green, or surpassed -> blue. 
+
+3, an Excel spreadsheet with a summary of the exported layout. It records each tree's position, species, and neighbor diversity metrics. Position metrics include hexagonal coordinates, "zone" defined as whether the tree is in the core or edge section, and "hex radius" defined as the number of hex-rings from the plot center. Neighbor diversity metrics evaluate the composition of that tree's immediate neighbors. Diversity metrics include species richness, Shannon index, Pielou's evenness index, and the identity of the most represent neighbor (multiple are written in the case of a tie). Row order is spirally organized with the center tree at the top of the spreadsheet, followed by the rightmost tree in the first hex-ring, followed by the clockwise sequence of trees in the same ring, followed by the rightmost tree in the next hex-ring, etc.
+
+4, a text document with each input parameter in .txt format. This can be useful for parameter exploration and reproducibility.  
 
 ```
 TEST = True # If True, adds 'Test' prefix to output filenames.
