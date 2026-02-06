@@ -149,6 +149,10 @@ Or run directly from an IDE (e.g. VS Code, PyCharm).
 
 For suggestions or bug reports, feel free to contact me via email: asc.sheppard@gmail.com 
 
+## AI Disclosure
+
+I received significant help from ChatGPT for coding and designing this program. The above workflow was written by myself with minimal input from AI.
+
 ## Reference List
 
 Jerome K Vanclay, Experiment designs to evaluate inter- and intra-specific interactions in mixed plantings of forest trees, Forest Ecology and Management, Volume 233, Issues 2–3, 2006, Pages 366-374, ISSN 0378-1127, https://doi.org/10.1016/j.foreco.2006.05.034
