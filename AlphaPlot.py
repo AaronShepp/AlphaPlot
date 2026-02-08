@@ -36,10 +36,10 @@ SPECIES_COLORS = {
 }
 
 # ---------- Criteria ----------
-MIN_NEIGHBOR_CASES = {0: 1, #for n = 0, mink >= _
-                      1: 1, #for n = 1, mink >= _
-                      2: 1, 
-                      3: 0, 
+MIN_NEIGHBOR_CASES = {0: 2, #for n = 0, mink >= _
+                      1: 2, #for n = 1, mink >= _
+                      2: 2, 
+                      3: 1, 
                       4: 0,
                       5: 0,
                       6: 0}
@@ -47,10 +47,10 @@ MIN_NEIGHBOR_CASES = {0: 1, #for n = 0, mink >= _
 NEIGHBOR_TOLERANCE = {0: 4, #for n = 0, rangek <= _
                       1: 4, 
                       2: 4, 
-                      3: 2,
-                      4: 1,
+                      3: 3,
+                      4: 2,
                       5: 1,
-                      6: 0}
+                      6: 1}
 
 # ---------- Scoring ----------
 PERFECT_BONUS                 = 500
@@ -63,17 +63,22 @@ TOL_VIOLATION_PENALTY = 20 # per FocalSpecies-NeighbborSpecies-rangeK_Violation.
 VARIANCE_PENALTY = 2.0 # across all FocalSpecies-NeighbborSpecies case counts
 RANGE_PENALTY    = 5.0 # penalizes high range case counts for a given n
 GEN_IMPROVE_WEIGHT   = 2.0 # rewards high minima of case counts (raising worst-off k for a given n), prioritzes n with low minima
-MAX_EVALUATED_NEIGHBORS = 3 # Used for ecological weight ie. "raise the weakest case". Not used for MIN and TOLERANCE criteria
+MAX_EVALUATED_NEIGHBORS = 3 # Used for GEN_IMPROE_WEIGHT ie. "raise the weakest case". Not used for MIN and TOLERANCE criteria
 
-# ---------- Simulated Annealing Calibration ----------
+# ---------- 1st Phase Simulated Annealing Calibration (Core trees only) ----------
 # Temperature(T): likeliness to accept worse swaps, Probobility ​= e^(Δ/T), cooling is scheduled (geometric) 
-SA_T0    =  1200.0 # initial temperature, recommended: equivalent to average score difference between random swaps
+SA_T0    =  2000.0 # initial temperature, recommended: equivalent to average score difference between random swaps
 SA_T_END = 0.1 #minimum temperature
 
+# ---------- 2nd Phase SA Calibration (Innermost edge trees only) ----------
+SA2_T0     = 400.0
+SA2_T_END  = 0.1
+
 # ---------- Search Effort ----------
-RANDOM_ATTEMPTS = 1000
-SA_SWAPS        = 5000
-SEED_RANGE = range(2)
+RANDOM_ATTEMPTS = 100
+SA_SWAPS        = 9000
+SA2_SWAPS  = 100
+SEED_RANGE = range(4)
 
 # ---------- Export ----------
 TEST = True # If True, adds 'Test' prefix to output filenames.
@@ -84,12 +89,12 @@ OUTPUT_NAME = (
     f"c{INNER_DIAMETER}"
     f"e{EDGE_WIDTH}"
     f"a{RANDOM_ATTEMPTS}"
-    f"sw{SA_SWAPS}"
+    f"sw{SA_SWAPS + SA2_SWAPS}"
     f"s{len(SEED_RANGE)}"
 )
 #Unique filenames created on conflict
 
-EXPORT_DIR = r"C:\MyExperiment\Method\PlantingLayout\AlphaPlot\Exports\c9e3\Tests" #Where do you want the exports to be saved? 
+EXPORT_DIR = r"C:\MyExperiment\Method\PlantingLayout\Exports\c9e3\Tests" #Where do you want the exports to be saved? 
 
 #Remember to close pop-up window of exported plot or you will not be able to run it again.
 
@@ -122,6 +127,12 @@ def split_inner_and_edge(inner_radius, edge_width):
     edge  = total - inner
     return inner, edge, total
 
+def innermost_edge(edge_coords, inner_coords):
+    inner = set(inner_coords)
+    return {
+        c for c in edge_coords
+        if any(n in inner for n in neighbors(c))
+    }
 
 def neighbors(coord):
     q, r = coord
@@ -181,6 +192,18 @@ def balanced_assignment(coords, species_list):
     random.shuffle(pool)
     return dict(zip(coords, pool))
 
+def balanced_assignment_fixed(coords, species_pool):
+    coords = list(coords)
+    pool = species_pool[:]
+    random.shuffle(pool)
+    return dict(zip(coords, pool))
+
+def make_balanced_pool(n_cells, species_list):
+    reps, rem = divmod(n_cells, len(species_list))
+    pool = [sp for sp in species_list for _ in range(reps)]
+    pool += species_list[:rem]
+    return pool
+
 # ==========================================================
 # ================= NEIGHBOR COUNTING ======================
 # ==========================================================
@@ -204,19 +227,26 @@ def compute_adjacency(inner_coords, species_map, species_list):
 # ==========================================================
 
 def satisfies_constraints(counts, species_list):
+    # ---- MIN constraints (unchanged) ----
     for sp in species_list:
         for other in species_list:
             for n_neighbors, m in MIN_NEIGHBOR_CASES.items():
                 if counts[sp][other][n_neighbors] < m:
                     return False
 
-    for other in species_list:
-        for n_neighbors, tol in NEIGHBOR_TOLERANCE.items():
-            vals = [counts[sp][other][n_neighbors] for sp in species_list]
-            if max(vals) - min(vals) > tol:
-                return False
+    # ---- GLOBAL RANGE constraints  ----
+    for n_neighbors, tol in NEIGHBOR_TOLERANCE.items():
+        vals = [
+            counts[sp][other][n_neighbors]
+            for sp in species_list
+            for other in species_list
+        ]
+
+        if max(vals) - min(vals) > tol:
+            return False
 
     return True
+
 
 # ==========================================================
 # ======================= SCORING ==========================
@@ -264,6 +294,30 @@ def score_layout(counts, species_list):
 
     return score
 
+def objective_score(counts, species_list, max_n=6):
+    """
+    Post-hoc descriptive score.
+    +10 for each unit increase in the minimum count across species
+    -1  for each unit increase in the range across species
+    """
+    score = 0
+
+    for n in range(max_n + 1):
+        vals = [
+            counts[sp][other][n]
+            for other in species_list
+            for sp in species_list
+        ]
+
+        min_n   = min(vals)
+        range_n = max(vals) - min(vals)
+
+        score += 10 * min_n
+        score -= 1 * range_n
+
+    return score
+
+
 # ==========================================================
 # ================= SIMULATED ANNEALING ====================
 # ==========================================================
@@ -273,7 +327,6 @@ def random_swap(species_map, inner_coords):
     new = species_map.copy()
     new[a], new[b] = new[b], new[a]
     return new
-
 
 def simulated_annealing(start_map, inner_coords, species_list):
     current = start_map
@@ -300,19 +353,64 @@ def simulated_annealing(start_map, inner_coords, species_list):
 
     return best, best_score
 
+def random_swap_subset(species_map, coords_subset):
+    a, b = random.sample(coords_subset, 2)
+    new = species_map.copy()
+    new[a], new[b] = new[b], new[a]
+    return new
+
+def simulated_annealing_inner_edge(start_map, inner_coords, inner_edge_coords, species_list):
+    current = start_map
+    current_score = score_layout(
+        compute_adjacency(inner_coords, current, species_list),
+        species_list
+    )
+
+    best = current
+    best_score = current_score
+    coords = list(inner_edge_coords)
+
+    for step in range(SA2_SWAPS):
+        T = SA2_T0 * (SA2_T_END / SA2_T0) ** (step / SA2_SWAPS)
+        candidate = random_swap_subset(current, coords)
+
+        counts = compute_adjacency(inner_coords, candidate, species_list)
+        cand_score = score_layout(counts, species_list)
+
+        if cand_score > current_score or random.random() < math.exp((cand_score - current_score) / T):
+            current, current_score = candidate, cand_score
+
+        if cand_score > best_score:
+            best, best_score = candidate, cand_score
+
+    return best, best_score
+
+
 # ==========================================================
 # ==================== SEARCH PIPELINE =====================
 # ==========================================================
 
 def find_best_layout(inner_coords, edge_coords, species_list):
+
+    # --- define edge sub-zones ONCE ---
+    inner_edge = innermost_edge(edge_coords, inner_coords)
+    outer_edge = set(edge_coords) - inner_edge
+
+    # --- fixed balanced pools (counts never change) ---
+    inner_edge_pool = make_balanced_pool(len(inner_edge), species_list)
+    outer_edge_pool = make_balanced_pool(len(outer_edge), species_list)
+    inner_pool      = make_balanced_pool(len(inner_coords), species_list)
+
     best_overall = (-float("inf"), None)
     best_valid   = (-float("inf"), None)
 
     for _ in range(RANDOM_ATTEMPTS):
-        layout = {
-            **balanced_assignment(inner_coords, species_list),
-            **balanced_assignment(edge_coords, species_list)
-        }
+        layout = {}
+
+        layout.update(balanced_assignment_fixed(inner_coords, inner_pool))
+        layout.update(balanced_assignment_fixed(inner_edge, inner_edge_pool))
+        layout.update(balanced_assignment_fixed(outer_edge, outer_edge_pool))
+
         counts = compute_adjacency(inner_coords, layout, species_list)
         score = score_layout(counts, species_list)
         valid = satisfies_constraints(counts, species_list)
@@ -328,6 +426,17 @@ def find_best_layout(inner_coords, edge_coords, species_list):
     improved, improved_score = simulated_annealing(
         start_layout, inner_coords, species_list
     )
+
+    # ---------- 2nd phase: inner-edge only ----------
+    inner_edge = innermost_edge(edge_coords, inner_coords)
+
+    refined, refined_score = simulated_annealing_inner_edge(
+        improved, inner_coords, inner_edge, species_list
+    )
+
+    if refined_score > improved_score:
+        improved, improved_score = refined, refined_score
+
 
     final_counts = compute_adjacency(inner_coords, improved, species_list)
     return improved, final_counts, improved_score
@@ -479,7 +588,11 @@ if __name__ == "__main__":
         layout, counts, score = find_best_layout(inner, edge, LIST)
         valid = satisfies_constraints(counts, LIST)
 
-        print(f"Seed {seed}: score={score:.2f}, valid={valid}")
+        sobj = objective_score(counts, LIST)
+
+        
+        print(f"Seed {seed}: OPTscore={score:.2f}, OBJECTIVEScore={sobj:.2f}, valid={valid}")
+        print(f"Completed in {(time.time() - start)/60:.2f} minutes")
 
         # Update best valid layout
         if valid and score > global_best_valid[0]:
@@ -497,7 +610,7 @@ if __name__ == "__main__":
         print("Exporting BEST OVERALL layout (criteria not fully met)")
 
     if final_map is None and global_best_overall[1] is not None:
-        print("No layout fully satisfies constraints. Exporting best overall layout.")
+        print("No layout fully satisfies criteria. Exporting best overall layout.")
         best_score, final_map, final_counts = global_best_overall
     elif final_map is None:
         raise RuntimeError("No layouts could be generated at all.")
@@ -505,11 +618,13 @@ if __name__ == "__main__":
 
     print("\n=== FINAL EXPORTED LAYOUT ===")
     if satisfies_constraints(final_counts, LIST):
-        print("Exporting BEST VALID layout (all constraints met)")
+        print("All criteria met")
     else:
-        print("Exporting BEST OVERALL layout (constraints not fully met)")
-    print(f"Score = {best_score:.2f}")
-    print(f"Completed in {time.time() - start:.2f} seconds")
+        print("Not all criteria met")
+    print(f"Optimization Score = {best_score:.2f}")
+    gobj = objective_score(final_counts, LIST)
+    print(f"Objective score = {gobj:.2f}")
+
     
     img_path   = avoid_overwrite(os.path.join(EXPORT_DIR, OUTPUT_NAME + ".svg"))
     plot_layout(all_coords, final_map)
@@ -642,6 +757,12 @@ if __name__ == "__main__":
     txt_path = avoid_overwrite(os.path.join(EXPORT_DIR, OUTPUT_NAME + "_Params.txt"))
 
     with open(txt_path, "w") as f:
+        f.write(f"{OUTPUT_NAME}\n")
+        f.write(f"Objective Score = {gobj}\n")
+        f.write(f"Objective score can be used to compare layouts however geometry and number of species will effect the difficulty of scoring high. Unaffected by criteria or scoring input parameters.\n\n")
+
+        f.write("=== Input Parameters ===\n\n")
+
         f.write("=== Geometry ===\n")
         f.write(f"INNER_DIAMETER = {INNER_DIAMETER}\n")
         f.write(f"EDGE_WIDTH     = {EDGE_WIDTH}\n\n")
@@ -650,8 +771,8 @@ if __name__ == "__main__":
         f.write(f"LIST = {LIST}\n\n")
 
         f.write("=== Criteria ===\n")
-        f.write(f"MIN_NEIGHBOR_CASES = { {k: MIN_NEIGHBOR_CASES[k] for k in range(1, 7)} }\n")
-        f.write(f"NEIGHBOR_TOLERANCE = { {k: NEIGHBOR_TOLERANCE[k] for k in range(1, 7)} }\n\n")
+        f.write(f"MIN_NEIGHBOR_CASES = { {k: MIN_NEIGHBOR_CASES[k] for k in range(0, 7)} }\n")
+        f.write(f"NEIGHBOR_TOLERANCE = { {k: NEIGHBOR_TOLERANCE[k] for k in range(0, 7)} }\n\n")
 
         f.write("=== Scoring ===\n")
         f.write(f"PERFECT_BONUS                 = {PERFECT_BONUS}\n")
@@ -667,14 +788,16 @@ if __name__ == "__main__":
         f.write("=== Simulated Annealing Calibration ===\n")
         f.write(f"SA_T0    = {SA_T0}\n")
         f.write(f"SA_T_END = {SA_T_END}\n\n")
+        f.write(f"SA2_T0    = {SA2_T0}\n")
+        f.write(f"SA2_T_END = {SA2_T_END}\n\n")
 
         f.write("=== Search Effort ===\n")
         f.write(f"RANDOM_ATTEMPTS = {RANDOM_ATTEMPTS}\n")
         f.write(f"SA_SWAPS        = {SA_SWAPS}\n")
-        f.write(f"SEED_RANGE      = {list(SEED_RANGE)}\n")
+        f.write(f"SA2_SWAPS       = {SA2_SWAPS}\n")
+        f.write(f"Number of Seeds = {len(SEED_RANGE)}\n")
 
     
     print(f"Exports Path:  {img_path}")
   
     plt.show()
-
