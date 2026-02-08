@@ -37,8 +37,8 @@ SPECIES_COLORS = {
 
 # ---------- Criteria ----------
 MIN_NEIGHBOR_CASES = {0: 2, #for n = 0, mink >= _
-                      1: 2, #for n = 1, mink >= _
-                      2: 2, 
+                      1: 3, #for n = 1, mink >= _
+                      2: 3, 
                       3: 1, 
                       4: 0,
                       5: 0,
@@ -67,7 +67,7 @@ MAX_EVALUATED_NEIGHBORS = 3 # Used for GEN_IMPROE_WEIGHT ie. "raise the weakest 
 
 # ---------- 1st Phase Simulated Annealing Calibration (Core trees only) ----------
 # Temperature(T): likeliness to accept worse swaps, Probobility ​= e^(Δ/T), cooling is scheduled (geometric) 
-SA_T0    =  2000.0 # initial temperature, recommended: equivalent to average score difference between random swaps
+SA_T0    =  2000.0 # initial temperature
 SA_T_END = 0.1 #minimum temperature
 
 # ---------- 2nd Phase SA Calibration (Innermost edge trees only) ----------
@@ -801,3 +801,4 @@ if __name__ == "__main__":
     print(f"Exports Path:  {img_path}")
   
     plt.show()
+
