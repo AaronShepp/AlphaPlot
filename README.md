@@ -25,7 +25,7 @@ If you do not already have the required packages, use the following code in the 
 This program is designed to be run as a standalone script. Users can customize experimental parameters. These are defined at the top of the file in the INPUTS section.
 
 ### Define plot size
-This program creates a hexagonal planting layout where each plant is hexagonally arranged to have 6 neighbors, and the entire plot is an even-sided hexagon. You can define the size of an inner "core" section of trees to be sampled, and an outer "edge" section of trees that serve to minimize edge effects. Core trees will be used as focal trees and neighbor trees for optimizing neighbor representation counts. Edge trees will never be used as focal trees but will be used as neighbor trees if they are adjacent to the core. 
+This program creates a hexagonal planting layout where each plant is hexagonally arranged to have 6 neighbors, and the entire plot is an even-sided hexagon. You can define the size of an inner "core" section of trees to be sampled, and an outer "edge" section of trees that serve to minimize edge effects. Core trees will be used as focal trees and neighbor trees for optimizing neighbor representation counts. Edge trees will never be used as focal trees but will be used as neighbor trees if they are adjacent to the core. Both the core and edge section will have an even number of each species. Furthermore, the innermost ring of the edge section will have an even number of each species.
 
 In this README, I have written every line of code where the user can customize parameters. For example, ```INNER_DIAMETER = 9``` can be changed to ```INNER_DIAMETER = 3``` or ```INNER_DIAMETER = 25``` etc.
 ```
@@ -33,8 +33,7 @@ INNER_DIAMETER = 9   # Diameter of the inner "core" section
 EDGE_WIDTH     = 3   # Width of the surrounding "edge" section
 ```
 ### Define Species Mixture
-This program can take any number of species, however the difficulty of satisfying neighbor criteria increases with greater species number. For large species mixtures, larger core diameters will have greater chances of success.
-
+This program can take any number of species, however the difficulty of satisfying neighbor criteria increases with greater species number. For large species mixtures, larger core diameters will compensate by decreasing the difficulty of satisfying criteria.
 Firstly, create a new list with the names of each species (or any taxa level) in your mixture. This list defines the mixture size and will be used for labels and colours in the exported data.
 Secondly, define CHOOSE_LIST according to the name for your list.
 Third, define the colours you want each species to be represented as in the exported plot image
@@ -64,15 +63,15 @@ MIN_NEIGHBOR_CASES decides the minimum number of cases (k) for a given species t
 
 NEIGHBOR_TOLERANCE decides the allowable range of cases across species pair permutations for a given n. Rangek = maxk - mink. While this does not represent an experimental priority, limiting the range of k will discourage redundant pairwise effect representation. So, this can be used in tandem with MIN_NEIGHBOR_CASES to maximize mink for relevant n numbers. Hint: be very strict with NEIGHBOR_TOLERANCE for high n numbers. 
 
-Criteria do not need to be met for a layout to be exported. The best layout across random seeds (described in "Define Search Effort") will be exported regardless. If the best layout meets all criteria, the following will be printed: "Exporting BEST VALID layout (all constraints met)" Otherwise, the following will be printed: "Exporting BEST OVERALL layout (constraints not fully met)"    
+Criteria do not need to be met for a layout to be exported. The best layout across random seeds (seeds are described in "Define Search Effort") will be exported regardless. If the best layout meets all criteria, the following will be printed: "Exporting BEST VALID layout (all constraints met)" Otherwise, the following will be printed: "Exporting BEST OVERALL layout (constraints not fully met)"    
 
-Below, I have given very easy criteria for a 9-diameter "core" with 4 species.
+Below, I have given criteria that are easy for the optimizer program but would be nearly impossible for me to satisfy if I tried to design a 9-diameter + edge layout by hand. Furthermore, these criteria already represent a significant improvement over a randomly generated layout, and keep in mind, much more difficult criteria can be achieved if "Search effort" is increased beyond the initial settings. 
 
 ```
-MIN_NEIGHBOR_CASES = {0: 1, #for n = 0, mink >= _
-                      1: 1, #for n = 1, mink >= _
-                      2: 1, 
-                      3: 0, 
+MIN_NEIGHBOR_CASES = {0: 2, #for n = 0, mink >= _
+                      1: 3, #for n = 1, mink >= _
+                      2: 3, 
+                      3: 1, 
                       4: 0,
                       5: 0,
                       6: 0}
@@ -80,14 +79,16 @@ MIN_NEIGHBOR_CASES = {0: 1, #for n = 0, mink >= _
 NEIGHBOR_TOLERANCE = {0: 4, #for n = 0, rangek <= _
                       1: 4, 
                       2: 4, 
-                      3: 2,
-                      4: 1,
+                      3: 3,
+                      4: 2,
                       5: 1,
-                      6: 0}
+                      6: 1}
 ```
 
 ### Define Scoring
-The program works through simulated annealing optimization. First a certain number of random layouts are created, and the best one is taken. With this best one, random swaps are made between "core" trees; If the swap results in an improved layout, the swap is kept. If the swap results in a worse layout, the degree of diminishment decides the probability that the swap is kept. Why would you ever want to keep a worse swap? The program needs to be able to escape local optima, i.e. sometimes, a layout needs to get worse before it can get better. Criteria are the most important factors for comparing layouts. Scoring determines the weight that different criteria have and how the program "approaches" optimization. Different categories of points allow the incentivization of improving layouts toward criteria and improving layouts after criteria have been met. Suggestions for scoring are difficult to make. 
+The program works through simulated annealing optimization. First a certain number of random layouts are created, and the best one is taken. Second, random swaps between "core" trees occur. Third, random swaps between trees in the innermost "edge" ring occur; If a swap results in an improved layout, the swap is kept. If a swap results in a worse layout, the degree of diminishment decides the probability that the swap is kept. Why would you ever want to keep a worse swap? Optimization involves escaping local optima, i.e. sometimes, a layout needs to get worse before it can get better. 
+
+Criteria are the most important factors for comparing layouts. Scoring determines the weight that different criteria have and how the program "approaches" optimization. Different categories of points allow the incentivization of improving layouts toward criteria and improving layouts after criteria have been met. Suggestions for scoring are difficult to make: partly because different users have different priorities; and partly because it is difficult to predict how the relative weights of different bonuses and penalities will effect the optimization process. 
 
 The following point definitions worked very well for my 9-diameter "core" plot with 4 or 6 species.
 
@@ -105,21 +106,27 @@ ECOLOGY_WEIGHT   = 2.0 # rewards high minima of case counts (raising worst-off k
 MAX_EVALUATED_NEIGHBORS = 3 # Used for ecological weight ie. "raise the weakest case". Not used for MIN and TOLERANCE criteria
 ```
 ### Define Simulated Annealing Calibration
-As stated in "Define Scoring", if a random swap results in a worse layout, the change in points decides the probability that the swap is kept. "Temperature" describes the probability of keeping a swap of a certain change in points (Δ). As swaps are made, temperature decreases and it becomes less likely to keep swaps that cause diminishment. Probability  ​= e^(Δ/T).
+As stated in "Define Scoring", if a random swap results in a worse layout, the change in points decides the probability that the swap is kept. "Temperature" describes the probability of keeping a swap of a certain change in points (Δ). As swaps are made, temperature decreases and it becomes less likely to keep swaps that cause diminishment. Probability  ​= e^(Δ/T). 
  
 ```
-SA_T0    =  1200.0 # initial temperature, recommended: equivalent to average score difference between random swaps
+# ---------- 1st Phase Simulated Annealing Calibration (Core trees only) ----------
+SA_T0    =  2000.0 # initial temperature
 SA_T_END = 0.1 #minimum temperature
+
+# ---------- 2nd Phase SA Calibration (Innermost edge trees only) ----------
+SA2_T0     = 400.0
+SA2_T_END  = 0.1
 ```
 ### Define Search Effort
-Search effort includes the following: 1, the number of random layouts that are generated and compared before proceeding with random swaps. 2, the number of random swaps. 3, the number of times 1 and 2 is completed, each time using a different random seed. Increasing any of these parameters will increase the number of layouts that are evaluated and compared. Keep in mind that swapping is more important for layout optimization than checking initial random layouts. For difficult criteria, I suggest you prioritize increasing the number of swaps. In addition to increasing the effort, a higher number of swaps will also decrease the rate of cooling which may improve optimization. Even for extensive searching, I recommend using a seed range of ~10 and a random attempt number no more than 10 000
+Search effort includes the following: 1, the number of random layouts that are generated and compared before proceeding with random swaps; 2, the number of random swaps between core trees; 3, the number of swaps between the edge trees that are adjacent to core trees; 4, the number of times 1, 2, and 3 are completed, each time using a different random seed and recording the best layout. The best valid layout across all seeds is exported. If no valid layout was found, the best invalid layout across all seeds is exported. Therefore, increasing any "Search Effort" parameter will increase the number of unique layouts that are evaluated and compared to generate a final optimized layout. Keep in mind that swapping is more important for layout optimization than checking initial random layouts. For difficult criteria, I suggest you prioritize increasing the number of SA_SWAPS. In addition to increasing the effort, a higher number of swaps will also decrease the rate of cooling which may improve optimization. SA2_SWAPS is exploring a relatively small set of possibilities so should be much lower than SA_SWAPS. Even for extensive searching, I recommend using a RANDOM_ATTEMPTS number of no more than 10 000. Due to the role of randomness in this program, increasing SEED_RANGE can be very valuable but can also have rapidly diminishing returns.
 
-Below is a very low search effort that will still successfully and quickly find a layout for the above criteria.
+The parameters below are preset in the program. They represent a very low search effort that will successfully and quickly find a layout for the preset criteria, geometry, and species number combination.
 
 ```
-RANDOM_ATTEMPTS = 1000        # Initial random layouts
-SA_SWAPS        = 5000        # Simulated annealing steps
-SEED_RANGE      = range(2)    # Number of random seeds
+RANDOM_ATTEMPTS = 100
+SA_SWAPS        = 9000
+SA2_SWAPS  = 100
+SEED_RANGE = range(4)
 ```
 ### Define Export
 The program will create four export files. A few input parameters will automatically be included in the exported file names. You can decide if "Test" is added to the start of these file names. "Test" may be useful when exploring parameters as you will be creating many files that you may later want to delete. You must define the global location of the folder where you want the files to be saved. If a file with the same name already exists, a numeric suffix is added automatically.
